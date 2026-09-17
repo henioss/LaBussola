@@ -4,6 +4,9 @@ name: mirror-import
 
 on:
   workflow_dispatch: {}
+  push:
+    branches:
+      - "arena/01a0af50-labussola"
 
 permissions:
   contents: write
