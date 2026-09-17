@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://labussolaitalia.com/sitemap.xml
