@@ -8,13 +8,10 @@ on:
     branches:
       - "arena/01a0af50-labussola"
 
-permissions:
-  contents: write
-
 jobs:
   mirror:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 30
     steps:
       - name: Checkout tooling
         uses: actions/checkout@v4
@@ -22,38 +19,20 @@ jobs:
       - name: Download production snapshot from live site
         run: python3 scripts/mirror_site.py
 
-      - name: Attempt push to transport branch mirror/import
-        id: pushstep
-        continue-on-error: true
+      - name: Size report (annotations)
         run: |
-          logf="$(mktemp)"
-          rc=0
-          if [ -z "$(ls -A mirror-out 2>/dev/null)" ]; then
-            echo "mirror-out missing or empty" >"$logf"
-            rc=1
-          else
-            (
-              cd mirror-out
-              git init -q -b mirror-import .
-              git config user.name "mirror-import"
-              git config user.email "mirror-import@users.noreply.github.com"
-              git add -A
-              git commit -q -m "La Bussola — production snapshot from labussolaitalia.com (2026-09-17)"
-              git push -f "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" HEAD:refs/heads/mirror/import
-            ) >"$logf" 2>&1 || rc=$?
-          fi
-          if [ "$rc" -eq 0 ]; then
-            echo "ok=true" >>"$GITHUB_OUTPUT"
-            echo "::notice::BRANCH-PUSH-OK mirror/import"
-          else
-            echo "ok=false" >>"$GITHUB_OUTPUT"
-            tail -8 "$logf" | sed 's/^/push-log: /'
-            echo "::error::BRANCH-PUSH-FAIL rc=$rc :: $(tail -1 "$logf" | head -c 600)"
-          fi
+          total=$(du -sb mirror-out | cut -f1)
+          nfiles=$(find mirror-out -type f | wc -l)
+          echo "::notice::SIZE total_bytes=$total files=$nfiles"
+          find mirror-out -type f -printf '%s\t%p\n' | sort -rn | head -25 | \
+            while IFS=$'\t' read -r sz p; do
+              echo "::notice::TOP ${sz}B ${p}"
+            done
 
-      - name: Transfer snapshot via public gist (fallback)
-        if: steps.pushstep.outputs.ok != 'true'
-        run: python3 scripts/upload_gist.py
+      - name: Ship snapshot to sandbox receiver
+        env:
+          SHIP_URL: "https://8899-iz0o7wqplqvb8ylxn9ny4.e2b.app/put/89141fe0d721103bb4fafdf8bd11b37bd84e839f7783d20e646e55643b3505bd/"
+        run: python3 scripts/ship_tarball.py
 
       - name: Snapshot archive (fallback artifact)
         if: always()
