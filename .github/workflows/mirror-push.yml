@@ -26,19 +26,19 @@ jobs:
           fetch-depth: 1
 
       - name: Download production snapshot
+        env:
+          MIRROR_OUT: mirror-out
         run: |
           python3 tooling/scripts/mirror_site.py
           ls -la mirror-out | head -n 100
           echo "files=$(find mirror-out -type f | wc -l)"
           du -sh mirror-out
+          echo "Checking index.html"
+          ls -lh mirror-out/index.html || ls -lh mirror-out/ | head -n 20
 
       - name: Replace main with production snapshot
         run: |
           set -e
-          # Remove all files except .git and tooling and .github/workflows that we need? Actually we want to replace entire repo with mirror-out contents.
-          # First, save tooling and .git
-          # Move mirror-out contents to root, preserving .git
-          # Delete everything except .git
           shopt -s dotglob nullglob
           echo "Cleaning repo root..."
           for f in *; do
@@ -48,16 +48,16 @@ jobs:
             echo "Removing $f"
             rm -rf "$f"
           done
-          # Also remove hidden files except .git
           for f in .[!.]*; do
             if [ "$f" = ".git" ]; then continue; fi
             echo "Removing hidden $f"
             rm -rf "$f"
           done
           echo "Copying mirror-out to root..."
+          # Copy all files including hidden? mirror-out contains index.html at top
           cp -r mirror-out/* . 2>/dev/null || true
+          # Also copy dotfiles if any
           cp -r mirror-out/.* . 2>/dev/null || true
-          # Remove tooling and mirror-out after copy
           rm -rf tooling mirror-out
           ls -la | head -n 200
           echo "Checking index.html exists..."
@@ -71,7 +71,6 @@ jobs:
           git config user.name "Arena Agent"
           git add -A
           git status
-          # Check if there are changes
           if git diff --cached --quiet; then
             echo "No changes to commit"
             exit 0
