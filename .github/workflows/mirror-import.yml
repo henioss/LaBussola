@@ -1,0 +1,50 @@
+# TEMPORARY import tooling — removed from the repository after the
+# production snapshot import completes. Do not use for regular builds.
+name: mirror-import
+
+on:
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  mirror:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout tooling
+        uses: actions/checkout@v4
+
+      - name: Download production snapshot from live site
+        run: python3 scripts/mirror_site.py
+
+      - name: Push snapshot to transport branch mirror/import
+        run: |
+          set -euo pipefail
+          cd mirror-out
+          git init -q -b mirror-import .
+          git config user.name "arena-ai-coding-agent[bot]"
+          git config user.email "418348515+arena-ai-coding-agent[bot]@users.noreply.github.com"
+          git add -A
+          git commit -q -m "La Bussola — production snapshot from labussolaitalia.com (2026-09-17)"
+          git remote add push "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          git push -f push HEAD:refs/heads/mirror/import
+
+      - name: Snapshot archive (fallback artifact)
+        if: always()
+        run: |
+          set -euo pipefail
+          if [ -d mirror-out ]; then
+            cd mirror-out && zip -qr ../mirror-snapshot.zip . && cd ..
+            ls -la mirror-snapshot.zip
+          else
+            echo "no mirror-out directory"
+          fi
+
+      - name: Upload snapshot archive
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mirror-snapshot
+          path: mirror-snapshot.zip
