@@ -1,0 +1,206 @@
+/* ==========================================================================
+ * La Bussola — Hero journey demonstration (fix #14, final composition)
+ *
+ * The Hero's own visual column briefly becomes a silent tutorial built from the
+ * website's OWN components: a real menu row with its `✦ PERSONALIZZA` control
+ * -> the click -> the real circular customization panel -> ingredient choices
+ * -> the customized pizza -> `Aggiungi al Carrello` -> the real confirmation
+ * state -> the untouched Hero again.
+ *
+ * Two composition rules drive everything below:
+ *
+ * 1. ONE FOREGROUND STORY AT A TIME. While the journey is up, the Hero's old
+ *    quick-pizza foreground (image, product name, price, ingredients, its own
+ *    PERSONALIZZA button, the dots) stops painting — see .lbhp-takesover. It is
+ *    not covered by a dark panel; it is suppressed, and restored unchanged.
+ * 2. NO WINDOW. The stage is inset:0 inside the Hero's visual column and owns
+ *    no surface: no radius, no border, no fill, no shadow, so the scene reads
+ *    as the visual area changing its content rather than a modal pasted on it.
+ *
+ * Everything is real, responsive DOM/CSS — no screenshots, no rasterised UI, no
+ * video. Each class used *inside* the stage is a class string that already ships
+ * in /assets/index-64dcfff5.css, so typography, spacing, colours and shadows are
+ * the production site's own. This file only adds stage plumbing (.lbhp-*).
+ *
+ * No shipped rule is modified; every selector is namespaced and scoped to #hero.
+ * ========================================================================== */
+
+/* --- the stage IS the Hero's visual column -------------------------------- */
+#hero .lbhp-stage {
+  position: absolute;
+  inset: 0;
+  z-index: 30;                   /* above the suppressed quick-pizza foreground */
+  pointer-events: none;          /* the demonstration can never be clicked      */
+  overflow: hidden;
+  opacity: 1;
+  contain: layout paint;
+  transform-origin: 50% 50%;
+  /* the area is a viewport, not a window: what leaves it fades out at the edge
+     instead of ending in a hard cut (only ever needed on the short screens,
+     where the panel travels the way the real one scrolls) */
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 22px, #000 calc(100% - 22px), transparent 100%);
+  mask-image: linear-gradient(to bottom, transparent 0, #000 22px, #000 calc(100% - 22px), transparent 100%);
+}
+/* the only "surface" is a shapeless radial scrim in the site's own noir, which
+ * keeps the type legible over the restaurant photograph and dissolves at the
+ * edges — there is no box for the eye to read as a window */
+#hero .lbhp-stage::before {
+  content: "";
+  position: absolute;
+  inset: -16% -22%;
+  background: radial-gradient(56% 50% at 50% 46%,
+              rgb(7 6 5 / .66), rgb(7 6 5 / .30) 60%, rgb(7 6 5 / 0) 82%);
+  opacity: 0;
+  transition: opacity .5s linear;
+  pointer-events: none;
+}
+#hero .lbhp-stage.lbhp-on::before { opacity: 1; }
+
+/* --- STATE B..F: the old Hero foreground bows out ------------------------- */
+#hero .lbhp-takesover > *:not(.lbhp-stage) {
+  opacity: 0;
+  transition: opacity .42s cubic-bezier(.22,.61,.36,1);
+}
+/* the obsolete quick-pizza foreground is retired for good: the Hero's visual
+   area is dedicated to the explanatory journey (layout boxes are kept, only
+   the painting is turned off, so nothing reflows and the Hero photo, copy and
+   normal functionality are untouched) */
+#hero .lbhp-dedicated > *:not(.lbhp-stage) {
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* scenes stack inside the stage; the script animates only opacity, so the
+ * composition itself is never stretched, squeezed or scaled per element */
+#hero .lbhp-scene {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 2px 0;
+  will-change: opacity;
+}
+#hero .lbhp-menu-inner, #hero .lbhp-cust-inner {
+  transform-origin: 50% 50%;
+  width: 100%;
+  max-width: 420px;
+}
+
+/* --- the menu moment: the row, on the Hero's own ground -------------------- */
+#hero .lbhp-menu-inner { margin: 0 auto; padding: 0 clamp(2px, 1.2cqw, 12px); }
+#hero .lbhp-rows { display: block; }
+#hero .lbhp-row-target { position: relative; }
+#hero .lbhp-pill { position: relative; min-width: 6.2rem; justify-content: center; }
+#hero .lbhp-pill.lbhp-press {
+  border-color: rgb(217 163 95);
+  background-color: rgb(217 163 95 / .16);
+  color: rgb(233 196 138);
+}
+
+/* --- the panel: orbit, chips, footer. Top-aligned: when the column is
+ *     shorter than the sheet, the overflow goes downward and the scene
+ *     travels there, exactly as the real panel scrolls on a phone ---------- */
+#hero .lbhp-scene.lbhp-cust { align-items: center; justify-content: flex-start; }
+#hero .lbhp-cust-inner { height: auto; }
+#hero .lbhp-cust-inner main { flex: 0 0 auto; min-height: 0; gap: 2px; }
+#hero .lbhp-orbit { position: relative; flex: 0 0 auto; display: flex; align-items: center; justify-content: center; }
+#hero .lbhp-rings { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; pointer-events: none; }
+#hero .lbhp-rings > * { flex: 0 0 auto; }
+#hero .lbhp-pizza { position: relative; display: flex; align-items: center; justify-content: center; }
+#hero .lbhp-pizza > img { display: block; }
+#hero .lbhp-pizza .lbhp-layer {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  opacity: 0;
+  pointer-events: none;
+}
+#hero .lbhp-chip {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transition: transform .3s cubic-bezier(.22,.61,.36,1);
+}
+#hero .lbhp-chipbox { position: relative; display: flex; flex-direction: column; align-items: center; }
+#hero .lbhp-halo { position: absolute; inset: -8px; border-radius: 9999px; opacity: 0; transition: opacity .2s linear; }
+#hero .lbhp-chipbox .lbhp-halo[class*="animate-pulse"] { opacity: 1; }
+#hero .lbhp-add { position: relative; display: flex; }
+#hero .lbhp-total { display: inline-block; }
+
+/* --- the interaction cue: a soft gold tap indicator, nothing cartoonish ---- */
+#hero .lbhp-cue {
+  position: absolute;
+  z-index: 30;
+  left: 0;
+  top: 0;
+  width: 28px;
+  height: 28px;
+  margin: -14px 0 0 -14px;
+  border-radius: 9999px;
+  border: 1px solid rgb(217 163 95 / .5);
+  background: rgb(217 163 95 / .07);
+  opacity: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  will-change: transform, opacity;
+}
+#hero .lbhp-cue::after {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 9999px;
+  background: rgb(217 163 95);
+  box-shadow: 0 0 10px rgb(217 163 95 / .7);
+}
+#hero .lbhp-cue.lbhp-tap::before {
+  content: "";
+  position: absolute;
+  inset: -3px;
+  border-radius: 9999px;
+  border: 1px solid rgb(217 163 95 / .85);
+  animation: lbhp-tapring .46s cubic-bezier(.22,.61,.36,1) 1;
+}
+@keyframes lbhp-tapring {
+  0%   { transform: scale(1.6); opacity: .9; }
+  100% { transform: scale(.6);  opacity: 0; }
+}
+
+/* --- reduced motion: the demonstration simply does not run ---------------- */
+@media (prefers-reduced-motion: reduce) {
+  #hero .lbhp-stage { display: none; }
+  #hero .lbhp-chip, #hero .lbhp-halo, #hero .lbhp-cue { transition: none; }
+  #hero .lbhp-cue.lbhp-tap::before { animation: none; }
+  #hero .lbhp-takesover > * { transition: none; }
+}
+
+/* ── Senza Glutine scene — a scene of the SAME explanatory stage ──────────
+ * not a viewport-level presentation: it inherits .lbhp-scene positioning
+ * (absolute inset 0 of the stage, centred by flex) exactly like the Menu
+ * Card and the Customizer, so the stage geometry is the only source of
+ * truth on desktop and mobile alike */
+#hero .lbhp-sg-veil{
+  position:absolute; inset:-18% -24%;
+  background:radial-gradient(60% 54% at 50% 47%,
+              rgb(7 6 5 / .82), rgb(7 6 5 / .42) 58%, rgb(7 6 5 / 0) 84%);
+}
+#hero .lbhp-sg-img{
+  /* contained by the stage slot itself — responsive by construction */
+  position:relative; width:auto; height:auto; opacity:0;
+  max-width:100%; max-height:100%;
+  filter:drop-shadow(0 14px 44px rgba(0,0,0,.55));
+}
+@media (max-width:700px){
+  /* on a narrow stage the ambient scrim must stay a shapeless vignette that
+     dissolves into the Hero photo — never a readable dark column/rectangle */
+  #hero .lbhp-stage::before{
+    inset:-10% -14%;
+    background:radial-gradient(52% 44% at 50% 47%,
+                rgb(7 6 5 / .40), rgb(7 6 5 / .16) 56%, rgb(7 6 5 / 0) 78%);
+  }
+}
